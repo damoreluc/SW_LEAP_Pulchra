@@ -117,8 +117,8 @@ uint32_t lastTime = 0;
 void setup()
 {
   Serial.begin(115200);
-  //  while (!Serial)
-  //    delay(100); // wait for native usb
+    while (!Serial)
+      delay(100); // wait for native usb
 
   // anemometro
   anemometroSetup(ANE_PIN, 2.44, 0.5, 100.0);
@@ -126,7 +126,8 @@ void setup()
   // display
   u8g2.begin();
   u8g2.setFont(u8g2_font_ncenB10_tr);
-  u8g2.drawStr(0, 16, "Pulchra LoRaWAN");
+  u8g2.drawStr(0, 16, "Pulchra");
+  u8g2.drawStr(20, 32, "LoRaWAN");  
   u8g2.sendBuffer();
 
   // MAX31865
@@ -165,50 +166,50 @@ void setup()
   // misura anemometro
   anemometroOn();
 
-  // // change this to your regional band (eg. US915, AS923, ...)
-  // if (!modem.begin(EU868))
-  // {
-  //   Serial.println("Failed to start module");
-  //   u8g2.clearBuffer();
-  //   u8g2.drawStr(0, 16, "LoRaWAN modem");
-  //   u8g2.drawStr(0, 31, "failed to start");
-  //   u8g2.sendBuffer();
-  //   while (1)
-  //   {
-  //   }
-  // };
+  // change this to your regional band (eg. US915, AS923, ...)
+  if (!modem.begin(EU868))
+  {
+    Serial.println("Failed to start module");
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, 16, "LoRaWAN modem");
+    u8g2.drawStr(0, 31, "failed to start");
+    u8g2.sendBuffer();
+    while (1)
+    {
+    }
+  };
 
-  // Serial.print("Your module version is: ");
-  // Serial.println(modem.version());
-  // Serial.print("Your device EUI is: ");
-  // Serial.println(modem.deviceEUI());
+  Serial.print("Your module version is: ");
+  Serial.println(modem.version());
+  Serial.print("Your device EUI is: ");
+  Serial.println(modem.deviceEUI());
 
-  // int connected = modem.joinOTAA(appEui, appKey);
+  int connected = modem.joinOTAA(appEui, appKey);
 
-  // u8g2.setFont(u8g2_font_7x14_tf);
+  u8g2.setFont(u8g2_font_7x14_tf);
 
-  // if (!connected)
-  // {
-  //   Serial.println("Something went wrong; are you indoor? Move near a window and retry");
-  //   u8g2.clearBuffer();
-  //   u8g2.drawStr(0, 16, "no LoRaWAN signal");
-  //   u8g2.drawStr(0, 31, "are you indoor?");
-  //   u8g2.sendBuffer();
-  //   delay(5000);
-  // }
-  // else
-  // {
-  //   isOnline = true;
-  //   Serial.println("LoRaWAN connected");
-  //   u8g2.clearBuffer();
-  //   u8g2.drawStr(0, 16, "LoRaWAN connected");
-  //   u8g2.sendBuffer();
-  //   // Set poll interval to 60 secs.
-  //   modem.minPollInterval(60);
-  //   // NOTE: independent of this setting, the modem will
-  //   // not allow sending more than one message every 2 minutes,
-  //   // this is enforced by firmware and can not be changed.
-  // }
+  if (!connected)
+  {
+    Serial.println("Something went wrong; are you indoor? Move near a window and retry");
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, 16, "no LoRaWAN signal");
+    u8g2.drawStr(0, 31, "are you indoor?");
+    u8g2.sendBuffer();
+    delay(5000);
+  }
+  else
+  {
+    isOnline = true;
+    Serial.println("LoRaWAN connected");
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, 16, "LoRaWAN connected");
+    u8g2.sendBuffer();
+    // Set poll interval to 60 secs.
+    modem.minPollInterval(60);
+    // NOTE: independent of this setting, the modem will
+    // not allow sending more than one message every 2 minutes,
+    // this is enforced by firmware and can not be changed.
+  }
 }
 
 // --- loop function ----------------------------------------------------------
@@ -254,12 +255,12 @@ void loop()
   // LM35Temperature
   LM35Temperature = lm35.temperature();
   sprintf(msg, "LM35: %6.2f C", LM35Temperature);
-  u8g2.drawStr(0, 15, msg);
+  u8g2.drawStr(0, 48, msg);
   Serial.println(msg);
 
   // RTDTemperature
   sprintf(msg, "RTD: %6.2f C", RTDTemperature);
-  u8g2.drawStr(0, 30, msg);
+  u8g2.drawStr(0, 62, msg);
 
   u8g2.sendBuffer();
 
@@ -318,26 +319,26 @@ void loop()
     serializeJson(doc, JSONoutput);
     // i.e.  {"RTD":20.5616684,"BME_T":20.54999924,"LM35":20.54999924,"BME_U":47.92382813}
     Serial.println(JSONoutput);
-    // if (isOnline)
-    // {
-    //   // send the uplink to TTN
-    //   int err;
-    //   modem.beginPacket();
-    //   modem.print(JSONoutput);
+    if (isOnline)
+    {
+      // send the uplink to TTN
+      int err;
+      modem.beginPacket();
+      modem.print(JSONoutput);
 
-    //   // don't ask TTN for acknowledge after uplink
-    //   err = modem.endPacket(false);
-    //   if (err > 0)
-    //   {
-    //     Serial.println("Message sent correctly!");
-    //   }
-    //   else
-    //   {
-    //     Serial.println("Error sending message :(");
-    //     Serial.println("(you may send a limited amount of messages per minute, depending on the signal strength");
-    //     Serial.println("it may vary from 1 message every couple of seconds to 1 message every minute)");
-    //   }
-    // }
+      // don't ask TTN for acknowledge after uplink
+      err = modem.endPacket(false);
+      if (err > 0)
+      {
+        Serial.println("Message sent correctly!");
+      }
+      else
+      {
+        Serial.println("Error sending message :(");
+        Serial.println("(you may send a limited amount of messages per minute, depending on the signal strength");
+        Serial.println("it may vary from 1 message every couple of seconds to 1 message every minute)");
+      }
+    }
   }
 
 // ritardo o modalità sleep
