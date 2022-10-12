@@ -30,6 +30,7 @@
 #include <MKRWAN.h>
 #include <arduino_secrets.h>
 #include <LM35.h>
+#include <misure.h>
 
 // Please enter your sensitive data in the Secret tab or arduino_secrets.h
 String appEui = SECRET_APP_EUI;
@@ -90,17 +91,11 @@ Adafruit_MAX31865 thermo = Adafruit_MAX31865(CS_RTD);
 #endif
 
 // buffer for printing
-String s1 = "BME: ";
-String s2 = "RTD: ";
-String s3 = " C";
-String s4 = "LM35: ";
-String ss = "";
-char msg[30];
+char msg[50];
 
-float BME280Temperature;
-float BME280Humidity;
-float RTDTemperature;
-float LM35Temperature;
+TMisura misura;
+
+void lettura(TMisura *m);
 
 // LoRaWAN radio modem
 LoRaModem modem;
@@ -138,7 +133,7 @@ void setup()
 #endif
 
 #ifdef PT1000_3W
-  thermo.begin(MAX31865_3WIRE); // set to 2WIRE, 3WIRE or 4WIRE as necessary
+//  thermo.begin(MAX31865_3WIRE); // set to 2WIRE, 3WIRE or 4WIRE as necessary
 #endif
 
   // // BME280
@@ -183,6 +178,8 @@ void setup()
   Serial.println(modem.version());
   Serial.print("Your device EUI is: ");
   Serial.println(modem.deviceEUI());
+  Serial.print("Your end device IS is: ");
+  Serial.println(END_DEVICE_ID);
 
   int connected = modem.joinOTAA(appEui, appKey);
 
@@ -215,52 +212,30 @@ void setup()
 // --- loop function ----------------------------------------------------------
 void loop()
 {
-
-  // BME280Temperature = bme.readTemperature();
-  // BME280Humidity = bme.readHumidity();
-  // Serial.print(F("BME Temperature = "));
-  // Serial.print(BME280Temperature);
-  // Serial.println(F(" °C"));
-  // Serial.print(F("Humidity = "));
-  // Serial.print(BME280Humidity);
-  // Serial.println(F(" %"));
-
-  uint16_t rtd = thermo.readRTD();
-  RTDTemperature = thermo.temperature(RNOMINAL, RREF);
-  // Serial.print(F("RTD value: "));
-  // Serial.println(rtd);
-  float ratio = rtd;
-  ratio /= 32768;
-  // Serial.print(F("Ratio = "));
-  // Serial.println(ratio, 8);
-  Serial.print(F("Resistance = "));
-  Serial.print(RREF * ratio, 8);
-  Serial.println(F(" Ohm"));
-  Serial.print(F("RTD Temperature = "));
-  Serial.print(RTDTemperature);
-  Serial.println(F(" °C"));
-
+  lettura(&misura);
+  
   // print on OLED
   u8g2.clearBuffer();
   // u8g2.setFont(u8g2_font_6x13_tr);
   u8g2.setFont(u8g2_font_7x14_tf);
 
   // BME280Temperature
-  //String sv1 = String(BME280Temperature, 2);
-  //ss = String(s1 + sv1 + s3);
-  //u8g2.drawStr(0, 15, ss.c_str());
-  //sprintf(msg, "BME: %6.2f C", BME280Temperature);
-  //u8g2.drawStr(0, 15, msg);
+  //sprintf(msg, "BME: %6.2f C", misura.BME280Temperature);
+  //u8g2.drawStr(0, 32, msg);
+  //sprintf(msg, "BME: %6.2f %", misura.BME280Humidity);
+  //u8g2.drawStr(0, 48, msg);
   
   // LM35Temperature
-  LM35Temperature = lm35.temperature();
-  sprintf(msg, "LM35: %6.2f C", LM35Temperature);
+  sprintf(msg, "LM35: %6.2f C", misura.LM35Temperature);
   u8g2.drawStr(0, 48, msg);
   Serial.println(msg);
 
   // RTDTemperature
-  sprintf(msg, "RTD: %6.2f C", RTDTemperature);
+  sprintf(msg, "Resistance: %10.6f Ohm", misura.RTDResistance);
+  Serial.println(msg);   
+  sprintf(msg, "RTD: %6.2f C", misura.RTDTemperature);
   u8g2.drawStr(0, 62, msg);
+  Serial.println(msg);  
 
   u8g2.sendBuffer();
 
@@ -299,25 +274,29 @@ void loop()
   Serial.println();
 
   // velocità vento
-  Serial.print(F("vento: "));
-  Serial.print(anemometroPeriodo());
-  Serial.print(F(" us  /  "));
-  Serial.print(anemometroVelocita(), 3);
-  Serial.println(F(" m/s"));
-  Serial.println();
+  sprintf(msg, "vento: %5ld us, %6.3f m/s\n", misura.WindPeriod, misura.WindSpeed);
+  Serial.print(msg);
 
   // aggiorna il documento JSON
-
   if (lastTime + LORA_PUBLISH_PERIOD < millis())
   {
     lastTime = millis();
     
-    doc["RTD"] = RTDTemperature;
-    doc["BME_T"] = BME280Temperature;
-    doc["LM35"] = LM35Temperature;
-    doc["BME_U"] = BME280Humidity;
+    doc["RTD"] = round(misura.RTDTemperature * 100);
+    doc["BME_T"] = round(misura.BME280Temperature * 100);
+    doc["LM35"] = round(misura.LM35Temperature * 100);
+    doc["BME_U"] = round(misura.BME280Humidity * 100);
+
+    // doc["RTD"] = String(misura.RTDTemperature, 2);
+    // doc["BME_T"] = String(misura.BME280Temperature, 2);
+    // doc["LM35"] = String(misura.LM35Temperature, 2);
+    // doc["BME_U"] = String(misura.BME280Humidity, 2);
+
     serializeJson(doc, JSONoutput);
     // i.e.  {"RTD":20.5616684,"BME_T":20.54999924,"LM35":20.54999924,"BME_U":47.92382813}
+    //  {"RTD":"0.00","BME_T":"0.00","LM35":"23.24","BME_U":"0.00"}
+    //  {"RTD":0,"BME_T":0,"LM35":2381,"BME_U":0}
+    //  {"RTD":-102,"BME_T":0,"LM35":2361,"BME_U":0}
     Serial.println(JSONoutput);
     if (isOnline)
     {
@@ -347,4 +326,27 @@ void loop()
 #else
   delay(2000);
 #endif
+}
+
+void lettura(TMisura *m) {
+
+  // // misura di temperatura e umidità dal sensore BME280
+  //m->BME280Temperature = bme.readTemperature();
+  //m->BME280Humidity = bme.readHumidity();
+
+  // misura di temperatura dal sensore PT100
+  uint16_t rtd = thermo.readRTD();
+  m->RTDTemperature = thermo.temperature(RNOMINAL, RREF);
+  float ratio = rtd;
+  ratio /= 32768.0;
+  m->RTDResistance = RREF * ratio;   
+
+  // misura di temperatura dal LM35
+  m->LM35Temperature = lm35.temperature();
+
+  // periodo anemometro
+  m->WindPeriod = anemometroPeriodo();
+  // velocità del vento
+  m->WindSpeed = anemometroVelocita();
+
 }
