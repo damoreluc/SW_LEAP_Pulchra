@@ -40,7 +40,7 @@ String appKey = SECRET_APP_KEY;
 //#define PT1000_3W
 //#define _SLEEP
 
-#define LORA_PUBLISH_PERIOD (4 * 60 * 1000)
+#define LORA_PUBLISH_PERIOD (2 * 60 * 1000)
 
 #define SENS_FOGLIA (0)
 #define OUT_VENTOLA (4)
@@ -112,8 +112,8 @@ uint32_t lastTime = 0;
 void setup()
 {
   Serial.begin(115200);
-    while (!Serial)
-      delay(100); // wait for native usb
+//    while (!Serial)
+      delay(1000); // wait for native usb
 
   // anemometro
   anemometroSetup(ANE_PIN, 2.44, 0.5, 100.0);
@@ -282,28 +282,42 @@ void loop()
   {
     lastTime = millis();
     
-    doc["RTD"] = round(misura.RTDTemperature * 100);
-    doc["BME_T"] = round(misura.BME280Temperature * 100);
-    doc["LM35"] = round(misura.LM35Temperature * 100);
-    doc["BME_U"] = round(misura.BME280Humidity * 100);
+    // doc["RTD"] = round(misura.RTDTemperature * 100);
+    // doc["BME_T"] = round(misura.BME280Temperature * 100);
+    // doc["LM35"] = round(misura.LM35Temperature * 100);
+    // doc["BME_U"] = round(misura.BME280Humidity * 100);
+
+    char bytes[4];
+    uint16_t iLM35 = round(((misura.LM35Temperature*32678.0)/100.0));
+    bytes[0] = iLM35 >> 8;
+    bytes[1] = iLM35 && 0x00ff;
+    bytes[2] = 26; // corrisponde a 20.5°C //30;  corrisponde a 23,4405517578125
+    bytes[3] = 61;                         //1;
 
     // doc["RTD"] = String(misura.RTDTemperature, 2);
     // doc["BME_T"] = String(misura.BME280Temperature, 2);
     // doc["LM35"] = String(misura.LM35Temperature, 2);
     // doc["BME_U"] = String(misura.BME280Humidity, 2);
 
-    serializeJson(doc, JSONoutput);
+    //serializeJson(doc, JSONoutput);
     // i.e.  {"RTD":20.5616684,"BME_T":20.54999924,"LM35":20.54999924,"BME_U":47.92382813}
     //  {"RTD":"0.00","BME_T":"0.00","LM35":"23.24","BME_U":"0.00"}
     //  {"RTD":0,"BME_T":0,"LM35":2381,"BME_U":0}
     //  {"RTD":-102,"BME_T":0,"LM35":2361,"BME_U":0}
-    Serial.println(JSONoutput);
+    //Serial.println(JSONoutput);
+
+    for(int i=0; i<4; i++) {
+      Serial.print(bytes[i],HEX); Serial.print(" ");
+    }
+    Serial.println();
+
     if (isOnline)
     {
       // send the uplink to TTN
       int err;
       modem.beginPacket();
-      modem.print(JSONoutput);
+      //modem.print(JSONoutput);
+      modem.write(bytes, 4);
 
       // don't ask TTN for acknowledge after uplink
       err = modem.endPacket(false);
