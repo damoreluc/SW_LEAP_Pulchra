@@ -31,6 +31,7 @@
 #include <arduino_secrets.h>
 #include <LM35.h>
 #include <misure.h>
+#include <ttn.h>
 
 // Please enter your sensitive data in the Secret tab or arduino_secrets.h
 String appEui = SECRET_APP_EUI;
@@ -96,6 +97,9 @@ char msg[50];
 TMisura misura;
 
 void lettura(TMisura *m);
+
+// buffer del data packet
+char bytes[PKTSIZE];
 
 // LoRaWAN radio modem
 LoRaModem modem;
@@ -281,32 +285,19 @@ void loop()
   if (lastTime + LORA_PUBLISH_PERIOD < millis())
   {
     lastTime = millis();
-    
-    // doc["RTD"] = round(misura.RTDTemperature * 100);
-    // doc["BME_T"] = round(misura.BME280Temperature * 100);
-    // doc["LM35"] = round(misura.LM35Temperature * 100);
-    // doc["BME_U"] = round(misura.BME280Humidity * 100);
 
-    char bytes[4];
-    uint16_t iLM35 = round(((misura.LM35Temperature*32678.0)/100.0));
-    bytes[0] = iLM35 >> 8;
-    bytes[1] = iLM35 && 0x00ff;
-    bytes[2] = 26; // corrisponde a 20.5°C //30;  corrisponde a 23,4405517578125
-    bytes[3] = 61;                         //1;
+    // uint16_t iLM35 = round(((misura.LM35Temperature*32678.0)/100.0));
+    // bytes[0] = iLM35 >> 8;
+    // bytes[1] = iLM35 && 0x00ff;
 
-    // doc["RTD"] = String(misura.RTDTemperature, 2);
-    // doc["BME_T"] = String(misura.BME280Temperature, 2);
-    // doc["LM35"] = String(misura.LM35Temperature, 2);
-    // doc["BME_U"] = String(misura.BME280Humidity, 2);
+    encode(bytes, misura.LM35Temperature, eLM35);
 
-    //serializeJson(doc, JSONoutput);
-    // i.e.  {"RTD":20.5616684,"BME_T":20.54999924,"LM35":20.54999924,"BME_U":47.92382813}
-    //  {"RTD":"0.00","BME_T":"0.00","LM35":"23.24","BME_U":"0.00"}
-    //  {"RTD":0,"BME_T":0,"LM35":2381,"BME_U":0}
-    //  {"RTD":-102,"BME_T":0,"LM35":2361,"BME_U":0}
-    //Serial.println(JSONoutput);
+    // bytes[2] = 26; // corrisponde a 20.5°C //30;  corrisponde a 23,4405517578125
+    // bytes[3] = 61;                         //1;
 
-    for(int i=0; i<4; i++) {
+    encode(bytes, misura.RTDTemperature, eRTD);
+
+    for(int i=0; i<PKTSIZE; i++) {
       Serial.print(bytes[i],HEX); Serial.print(" ");
     }
     Serial.println();
@@ -316,8 +307,7 @@ void loop()
       // send the uplink to TTN
       int err;
       modem.beginPacket();
-      //modem.print(JSONoutput);
-      modem.write(bytes, 4);
+      modem.write(bytes, PKTSIZE);
 
       // don't ask TTN for acknowledge after uplink
       err = modem.endPacket(false);
