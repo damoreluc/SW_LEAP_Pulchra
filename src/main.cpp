@@ -26,7 +26,6 @@
 #include <Adafruit_MAX31865.h>
 #include <U8g2lib.h>
 #include <anemometro.h>
-#include <ArduinoJson.h>
 #include <MKRWAN.h>
 #include <arduino_secrets.h>
 #include <LM35.h>
@@ -103,11 +102,6 @@ char ttnDataPacket[PKTSIZE];
 
 // LoRaWAN radio modem
 LoRaModem modem;
-
-// JSON object
-StaticJsonDocument<128> doc;
-// declare a buffer to hold the result
-char JSONoutput[128];
 
 // time keeper for periodic LoRaWAN publishing
 uint32_t lastTime = 0;
@@ -281,7 +275,7 @@ void loop()
   sprintf(msg, "vento: %5ld us, %6.3f m/s\n", misura.WindPeriod, misura.WindSpeed);
   Serial.print(msg);
 
-  // aggiorna il documento JSON
+  // aggiorna il pacchetto dati TTN
   if (lastTime + LORA_PUBLISH_PERIOD < millis())
   {
     lastTime = millis();
@@ -326,7 +320,7 @@ void loop()
 
 void lettura(TMisura *m) {
 
-  // // misura di temperatura e umidità dal sensore BME280
+  // misura di temperatura e umidità dal sensore BME280
   //m->BME280Temperature = bme.readTemperature();
   //m->BME280Humidity = bme.readHumidity();
 
