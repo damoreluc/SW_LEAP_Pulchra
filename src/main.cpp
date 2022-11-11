@@ -99,7 +99,7 @@ TMisura misura;
 void lettura(TMisura *m);
 
 // buffer del data packet
-char bytes[PKTSIZE];
+char ttnDataPacket[PKTSIZE];
 
 // LoRaWAN radio modem
 LoRaModem modem;
@@ -286,19 +286,11 @@ void loop()
   {
     lastTime = millis();
 
-    // uint16_t iLM35 = round(((misura.LM35Temperature*32678.0)/100.0));
-    // bytes[0] = iLM35 >> 8;
-    // bytes[1] = iLM35 && 0x00ff;
-
-    encode(bytes, misura.LM35Temperature, eLM35);
-
-    // bytes[2] = 26; // corrisponde a 20.5°C //30;  corrisponde a 23,4405517578125
-    // bytes[3] = 61;                         //1;
-
-    encode(bytes, misura.RTDTemperature, eRTD);
+    encode(ttnDataPacket, misura.LM35Temperature, eLM35);
+    encode(ttnDataPacket, misura.RTDTemperature, eRTD);
 
     for(int i=0; i<PKTSIZE; i++) {
-      Serial.print(bytes[i],HEX); Serial.print(" ");
+      Serial.print(ttnDataPacket[i],HEX); Serial.print(" ");
     }
     Serial.println();
 
@@ -307,7 +299,7 @@ void loop()
       // send the uplink to TTN
       int err;
       modem.beginPacket();
-      modem.write(bytes, PKTSIZE);
+      modem.write(ttnDataPacket, PKTSIZE);
 
       // don't ask TTN for acknowledge after uplink
       err = modem.endPacket(false);
@@ -326,9 +318,9 @@ void loop()
 
 // ritardo o modalità sleep
 #ifdef _SLEEP
-  LowPower.sleep(2000);
+  LowPower.sleep(10000);
 #else
-  delay(2000);
+  delay(10000);
 #endif
 }
 
