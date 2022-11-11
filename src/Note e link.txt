@@ -1,0 +1,5 @@
+Air time calculator:
+https://avbentem.github.io/airtime-calculator/ttn/eu868
+
+Packet optimization:
+https://lora-developers.semtech.com/documentation/tech-papers-and-guides/the-book/intr
